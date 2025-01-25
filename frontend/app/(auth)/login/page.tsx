@@ -24,6 +24,9 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-gray-100">
       <div className="bg-white p-8 rounded-lg shadow-md w-96">
         <h1 className="text-2xl font-bold mb-6 text-center">Login</h1>
+        <div className="bg-blue-50 text-blue-600 p-3 rounded mb-4 text-sm">
+          Demo credentials: username: <strong>admin</strong>, password: <strong>password123</strong>
+        </div>
         {error && (
           <div className="bg-red-50 text-red-500 p-3 rounded mb-4">
             {error}

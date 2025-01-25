@@ -1,34 +1,86 @@
 'use client'
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-
-interface User {
-  id: number;
-  username: string;
-  role: string;
-}
+import { API_BASE_URL } from '../config';
+import { useRouter } from 'next/navigation';
 
 interface AuthContextType {
-  user: User | null;
+  user: any;
   isAuthenticated: boolean;
-  login: () => void;
+  login: (username: string, password: string) => Promise<void>;
   logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user] = useState<User>({ id: 1, username: 'frontdesk', role: 'staff' });
-  const [isAuthenticated] = useState(true);
+  const [user, setUser] = useState(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const router = useRouter();
 
-  const login = () => {
-    // Dummy login 
-    console.log('Logged in');
+  useEffect(() => {
+    checkAuth();
+  }, []);
+
+  const checkAuth = async () => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      try {
+        const response = await fetch(`${API_BASE_URL}/auth/verify`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        if (response.ok) {
+          const userData = await response.json();
+          setUser(userData);
+          setIsAuthenticated(true);
+        } else {
+          localStorage.removeItem('token');
+          setIsAuthenticated(false);
+        }
+      } catch (error) {
+        localStorage.removeItem('token');
+        setIsAuthenticated(false);
+      }
+    }
+    setIsLoading(false);
   };
+
+const login = async (username: string, password: string) => {
+  const response = await fetch(`${API_BASE_URL}/auth/login`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ username, password }),
+  });
+
+  if (!response.ok) {
+    throw new Error('Login failed');
+  }
+
+  const data = await response.json();
+  
+  // Set both localStorage and cookie
+  localStorage.setItem('token', data.access_token);
+  document.cookie = `token=${data.access_token}; path=/`;
+  
+  setUser(data.user);
+  setIsAuthenticated(true);
+};
 
   const logout = () => {
-    console.log('Logged out');
+    localStorage.removeItem('token');
+    setUser(null);
+    setIsAuthenticated(false);
+    router.push('/login');
   };
+
+  if (isLoading) {
+    return <div>Loading...</div>;
+  }
 
   return (
     <AuthContext.Provider value={{ user, isAuthenticated, login, logout }}>
@@ -37,10 +89,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-export const useAuth = () => {
+export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
-};
+}
