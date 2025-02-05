@@ -1,33 +1,26 @@
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
+
+const PUBLIC_PATHS = [  '/login']
+const PROTECTED_PATHS = ['/doctors', '/appointments', '/']
 
 export function middleware(request: NextRequest) {
-  const token = request.cookies.get('token')?.value || 
-                request.headers.get('Authorization')?.split(' ')[1];
+  const token = request.cookies.get('token')?.value
+  const path = request.nextUrl.pathname
 
-  const isAuthPage = request.nextUrl.pathname.startsWith('/login');
-  const protectedPaths = ['/doctors', '/appointments', '/'];
-  
-  const isProtectedRoute = protectedPaths.some(path => 
-    request.nextUrl.pathname.startsWith(path)
-  );
-
-  if (!token && isProtectedRoute) {
-    const url = new URL('/login', request.url);
-    url.searchParams.set('from', request.nextUrl.pathname);
-    return NextResponse.redirect(url);
+  // Skip middleware for public paths
+  if (PUBLIC_PATHS.includes(path)) {
+    return NextResponse.next()
   }
 
-  if (token && isAuthPage) {
-    return NextResponse.redirect(new URL('/', request.url));
+  // Protect specific routes
+  if (PROTECTED_PATHS.some(p => path.startsWith(p))) {
+    if (!token) {
+      return NextResponse.redirect(new URL('/login', request.url))
+    }
   }
 
-  const response = NextResponse.next();
-  if (token) {
-    response.headers.set('Authorization', `Bearer ${token}`);
-  }
-
-  return response;
+  return NextResponse.next()
 }
 
 export const config = {
@@ -35,6 +28,5 @@ export const config = {
     '/doctors/:path*',
     '/appointments/:path*',
     '/queue/:path*',
-    '/login'
   ]
-};
+}
